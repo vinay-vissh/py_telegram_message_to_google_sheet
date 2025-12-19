@@ -12,6 +12,12 @@ This project contains Python scripts to interact with the Telegram API using the
 
 1. Clone the repository or download the source code.
 
+2. Create a virtual environment (optional but recommended):
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate  # On Windows (and not using Git Bash) use `.venv\Scripts\activate`
+   ```
+
 2. Install the required dependencies: `pip install -r requirements.txt`
 
 ## Configuration

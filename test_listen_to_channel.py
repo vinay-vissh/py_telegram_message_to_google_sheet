@@ -2,11 +2,12 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import config
 import asyncio
+import logging
 
-# You can specify the channel username or ID here.
-# Example: 'my_channel' or 123456789
-# If you want to listen to ALL chats, remove the `chats` parameter in the decorator.
-TARGET_CHANNEL = "me"  # Listening to "Saved Messages" for testing. Change this to your desired channel.
+# Configure logging to see connection/disconnection events
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", level=logging.INFO
+)
 
 print("Initializing Telegram Client for listening...")
 client = TelegramClient(
@@ -14,7 +15,14 @@ client = TelegramClient(
 )
 
 
-@client.on(events.NewMessage())
+# Configure event listener arguments
+# If config.TARGET_CHANNEL is set, we filter by that chat. Otherwise, we listen to all.
+event_params = {}
+if config.TARGET_CHANNEL:
+    event_params["chats"] = config.TARGET_CHANNEL
+
+
+@client.on(events.NewMessage(**event_params))
 async def new_message_handler(event):
     chat = await event.get_chat()
     sender = await event.get_sender()
@@ -32,7 +40,8 @@ async def main():
     print("Connecting...")
     await client.start()
 
-    print(f"Listening for new messages in: {TARGET_CHANNEL}...")
+    target_desc = config.TARGET_CHANNEL if config.TARGET_CHANNEL else "ALL CHATS"
+    print(f"Listening for new messages in: {target_desc}...")
     print("Press Ctrl+C to stop.")
 
     # This will keep the script running and listening for events
