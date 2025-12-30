@@ -18,3 +18,6 @@ env/
 
 # Logs
 *.log
+
+# Credentials
+gcp-service-account*.json
