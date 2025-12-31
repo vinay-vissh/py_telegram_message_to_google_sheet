@@ -2,6 +2,8 @@ from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 import config
 import asyncio
+from datetime import datetime
+import pytz
 import logging
 import gspread
 import traceback
@@ -54,18 +56,37 @@ async def new_message_handler(event):
 
     chat_name = chat.title if hasattr(chat, "title") else "Unknown"
     sender_name = sender.first_name if sender else "Unknown"
+    message_id = event.id
+    message = event.text
+    status = "Pending"
+
+    ist = pytz.timezone("Asia/Kolkata")
+    status_updated_at = datetime.now(ist).strftime("%Y-%m-%d %H:%M:%S")
 
     print(f"--- New Message in {chat_name} ---")
+    print(f"Message ID: {message_id}")  # Print ID
     print(f"Sender: {sender_name}")
-    print(f"Message: {event.text}")
+    print(f"Message: {message}")
     print("-" * 30)
 
     if sheet:
         try:
             # timestamp, chat_name, sender_name, message
-            timestamp = event.date.strftime("%Y-%m-%d %H:%M:%S")
+            timestamp = event.date.astimezone(ist).strftime("%Y-%m-%d %H:%M:%S")
             # Insert row at index 2 (below the header) so the latest message is on top
-            sheet.insert_row([timestamp, chat_name, sender_name, event.text], index=2)
+            sheet.insert_row(
+                [
+                    timestamp,
+                    chat_name,
+                    sender_name,
+                    message_id,
+                    message,
+                    status,
+                    status_updated_at,
+                ],
+                index=2,
+                value_input_option="USER_ENTERED",
+            )
             print("Logged to Google Sheet.")
         except Exception as e:
             print(f"Failed to log to Google Sheet: {e}")
