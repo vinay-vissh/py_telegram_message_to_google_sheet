@@ -30,7 +30,7 @@ if config.GOOGLE_SHEET_ID and config.GOOGLE_SHEET_CREDENTIALS_FILE:
         sh = gc.open_by_key(config.GOOGLE_SHEET_ID)
         sheet = sh.worksheet(config.GOOGLE_SHEET_NAME)
         print(
-            f"Successfully connected to Google Sheet: {config.GOOGLE_SHEET_ID} ({config.GOOGLE_SHEET_NAME})"
+            f"Successfully connected to Google Sheet: '{sh.title}' (ID: {config.GOOGLE_SHEET_ID}) / Worksheet: '{config.GOOGLE_SHEET_NAME}'"
         )
     except Exception as e:
         print(f"Error connecting to Google Sheet: {e}")
@@ -46,7 +46,12 @@ client = TelegramClient(
 # If config.TARGET_CHANNEL is set, we filter by that chat. Otherwise, we listen to all.
 event_params = {}
 if config.TARGET_CHANNEL:
-    event_params["chats"] = config.TARGET_CHANNEL
+    target = config.TARGET_CHANNEL
+    # Convert string ID to int if it looks like one (e.g. "-100...")
+    if isinstance(target, str):
+        if target.lstrip("-").isdigit():
+            target = int(target)
+    event_params["chats"] = target
 
 
 @client.on(events.NewMessage(**event_params))
@@ -96,7 +101,43 @@ async def main():
     print("Connecting...")
     await client.start()
 
-    target_desc = config.TARGET_CHANNEL if config.TARGET_CHANNEL else "ALL CHATS"
+    # If we are filtering by a specific chat, ensure the client has it in cache
+    if "chats" in event_params:
+        target = event_params["chats"]
+        try:
+            await client.get_entity(target)
+        except ValueError:
+            print(f"Entity {target} not found in session. Refreshing dialogs...")
+            await client.get_dialogs()
+            # Try again to verify
+            try:
+                await client.get_entity(target)
+                print(f"Successfully found entity {target}.")
+            except ValueError:
+                print(
+                    f"ERROR: Could not find entity {target} even after refreshing dialogs. Check the ID/Username."
+                )
+                print(
+                    "Exiting script because the target channel is invalid or not accessible."
+                )
+                await client.disconnect()
+                return
+
+    target_desc = "ALL CHATS"
+    if config.TARGET_CHANNEL:
+        try:
+            entity = await client.get_entity(event_params["chats"])
+            target_desc = (
+                getattr(entity, "title", None)
+                or getattr(entity, "first_name", None)
+                or config.TARGET_CHANNEL
+            )
+
+            if target_desc != config.TARGET_CHANNEL:
+                target_desc += f" ({config.TARGET_CHANNEL})"
+        except Exception:
+            target_desc = config.TARGET_CHANNEL
+
     print(f"Listening for new messages in: {target_desc}...")
     print("Press Ctrl+C to stop.")
 
